@@ -229,6 +229,7 @@ public:
   float readTemperature(void);
   float readPressure(void);
   float readHumidity(void);
+  void readSensors(float *temp, float *pressure, float *humidity);
 
   float readAltitude(float seaLevel);
   float seaLevelForAltitude(float altitude, float pressure);
@@ -256,6 +257,12 @@ protected:
 
   void readCoefficients(void);
   bool isReadingCalibration(void);
+
+  bool readTemperature(int32_t *adc_P, int32_t *adc_H);
+  float calculateTemperature(void);
+  float calculatePressure(int32_t adc_P);
+  float calculateHumidity(int32_t adc_H);
+
   uint8_t spixfer(uint8_t x);
 
   void write8(byte reg, byte value);
@@ -265,6 +272,7 @@ protected:
   int16_t readS16(byte reg);
   uint16_t read16_LE(byte reg); // little endian
   int16_t readS16_LE(byte reg); // little endian
+  void read(byte reg, byte buf[], byte count);
 
   uint8_t _i2caddr;  //!< I2C addr for the TwoWire interface
   int32_t _sensorID; //!< ID of the BME Sensor

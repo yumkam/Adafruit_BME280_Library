@@ -282,6 +282,33 @@ uint16_t Adafruit_BME280::read16(byte reg) {
 }
 
 /*!
+ *   @brief  Reads block of registers over I2C or SPI
+ *   @param reg first register address to read from
+ *   @param buf the buffer for data
+ *   @param count number of registers to save
+ */
+void Adafruit_BME280::read(byte reg, byte buf[], byte count) {
+  if (_cs == -1) {
+    _wire->beginTransmission((uint8_t)_i2caddr);
+    _wire->write((uint8_t)reg);
+    _wire->endTransmission();
+    _wire->requestFrom((uint8_t)_i2caddr, count);
+    while (count-- > 0)
+      *buf++ = _wire->read();
+  } else {
+    if (_sck == -1)
+      _spi->beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
+    digitalWrite(_cs, LOW);
+    spixfer(reg | 0x80); // read, bit 7 high
+    while (count-- > 0)
+      *buf++ = spixfer(0);
+    digitalWrite(_cs, HIGH);
+    if (_sck == -1)
+      _spi->endTransaction(); // release the SPI bus
+  }
+}
+
+/*!
  *   @brief  Reads a signed 16 bit little endian value over I2C or SPI
  *   @param reg the register address to read from
  *   @returns the 16 bit data value read from the device
@@ -407,11 +434,38 @@ bool Adafruit_BME280::isReadingCalibration(void) {
  *   @returns the temperature read from the device
  */
 float Adafruit_BME280::readTemperature(void) {
+  if (!readTemperature(NULL, NULL))
+    return NAN;
+  return calculateTemperature();
+}
+
+bool Adafruit_BME280::readTemperature(int32_t *adc_P, int32_t *adc_H) {
   int32_t var1, var2;
 
-  int32_t adc_T = read24(BME280_REGISTER_TEMPDATA);
+  int32_t adc_T;
+  byte buf[8];
+
+  static_assert(BME280_REGISTER_PRESSUREDATA + 3 == BME280_REGISTER_TEMPDATA);
+  static_assert(BME280_REGISTER_TEMPDATA + 3 == BME280_REGISTER_HUMIDDATA);
+
+  read((adc_P ? BME280_REGISTER_PRESSUREDATA : BME280_REGISTER_TEMPDATA),
+       buf,
+       (adc_P ? 3 : 0) + 3 + (adc_H ? 2 : 0));
+
+  byte *p = buf;
+  if (adc_P) {
+    *adc_P = ((uint32_t)p[0]<<16) | (((uint16_t)p[1]<<8) | p[2]);
+    p += 3;
+  }
+  adc_T = ((uint32_t)p[0]<<16) | (((uint16_t)p[1]<<8) | p[2]);
+  p += 3;
+  if (adc_H) {
+    *adc_H = ((uint16_t)p[0]<<8) | p[1];
+    p += 2;
+  }
+
   if (adc_T == 0x800000) // value in case temp measurement was disabled
-    return NAN;
+    return false;
   adc_T >>= 4;
 
   var1 = ((((adc_T >> 3) - ((int32_t)_bme280_calib.dig_T1 << 1))) *
@@ -425,9 +479,28 @@ float Adafruit_BME280::readTemperature(void) {
          14;
 
   t_fine = var1 + var2 + t_fine_adjust;
+  return true;
+}
 
+float Adafruit_BME280::calculateTemperature(void) {
   float T = (t_fine * 5 + 128) >> 8;
   return T / 100;
+}
+
+void Adafruit_BME280::readSensors(float *temp, float *pressure, float *humidity) {
+  int32_t adc_P, adc_H;
+  if (!readTemperature(pressure ? &adc_P : NULL, humidity ? &adc_H : NULL)) {
+    if (temp) *temp = NAN;
+    if (pressure) *pressure = NAN;
+    if (humidity) *humidity = NAN;
+    return;
+  }
+  if (temp)
+    *temp = calculateTemperature();
+  if (pressure)
+    *pressure = calculatePressure(adc_P);
+  if (humidity)
+    *humidity = calculateHumidity(adc_H);
 }
 
 /*!
@@ -435,11 +508,15 @@ float Adafruit_BME280::readTemperature(void) {
  *   @returns the pressure value (in Pascal) read from the device
  */
 float Adafruit_BME280::readPressure(void) {
+  int32_t adc_P;
+  if (!readTemperature(&adc_P, NULL))
+    return NAN;
+  return calculatePressure(adc_P);
+}
+
+float Adafruit_BME280::calculatePressure(int32_t adc_P) {
   int64_t var1, var2, p;
 
-  readTemperature(); // must be done first to get t_fine
-
-  int32_t adc_P = read24(BME280_REGISTER_PRESSUREDATA);
   if (adc_P == 0x800000) // value in case pressure measurement was disabled
     return NAN;
   adc_P >>= 4;
@@ -470,13 +547,17 @@ float Adafruit_BME280::readPressure(void) {
  *  @returns the humidity value read from the device
  */
 float Adafruit_BME280::readHumidity(void) {
-  readTemperature(); // must be done first to get t_fine
+  int32_t adc_H;
+  if (!readTemperature(NULL, &adc_H))
+    return NAN;
+  return calculateHumidity(adc_H);
+}
 
-  int32_t adc_H = read16(BME280_REGISTER_HUMIDDATA);
+float Adafruit_BME280::calculateHumidity(int32_t adc_H) {
+  int32_t v_x1_u32r;
+
   if (adc_H == 0x8000) // value in case humidity measurement was disabled
     return NAN;
-
-  int32_t v_x1_u32r;
 
   v_x1_u32r = (t_fine - ((int32_t)76800));
 
