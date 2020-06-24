@@ -330,28 +330,52 @@ void Adafruit_BME280::takeForcedMeasurement() {
  *   @brief  Reads the factory-set coefficients
  */
 void Adafruit_BME280::readCoefficients(void) {
-  _bme280_calib.dig_T1 = read16_LE(BME280_REGISTER_DIG_T1);
-  _bme280_calib.dig_T2 = readS16_LE(BME280_REGISTER_DIG_T2);
-  _bme280_calib.dig_T3 = readS16_LE(BME280_REGISTER_DIG_T3);
+  byte buf[BME280_REGISTER_DIG_H1 - BME280_REGISTER_DIG_T1 + 1];
+  
+  static_assert(sizeof(buf) >= BME280_REGISTER_DIG_H1 - BME280_REGISTER_DIG_T1 + 1);
+  read(BME280_REGISTER_DIG_T1, buf, BME280_REGISTER_DIG_H1 - BME280_REGISTER_DIG_T1 + 1);
 
-  _bme280_calib.dig_P1 = read16_LE(BME280_REGISTER_DIG_P1);
-  _bme280_calib.dig_P2 = readS16_LE(BME280_REGISTER_DIG_P2);
-  _bme280_calib.dig_P3 = readS16_LE(BME280_REGISTER_DIG_P3);
-  _bme280_calib.dig_P4 = readS16_LE(BME280_REGISTER_DIG_P4);
-  _bme280_calib.dig_P5 = readS16_LE(BME280_REGISTER_DIG_P5);
-  _bme280_calib.dig_P6 = readS16_LE(BME280_REGISTER_DIG_P6);
-  _bme280_calib.dig_P7 = readS16_LE(BME280_REGISTER_DIG_P7);
-  _bme280_calib.dig_P8 = readS16_LE(BME280_REGISTER_DIG_P8);
-  _bme280_calib.dig_P9 = readS16_LE(BME280_REGISTER_DIG_P9);
+  static_assert(BME280_REGISTER_DIG_T1 == BME280_REGISTER_DIG_T1 +  0);
+  _bme280_calib.dig_T1 = ((uint16_t)buf[ 1] << 8) | buf[ 0];
+  static_assert(BME280_REGISTER_DIG_T2 == BME280_REGISTER_DIG_T1 +  2);
+  _bme280_calib.dig_T2 = (( int16_t)buf[ 3] << 8) | buf[ 2];
+  static_assert(BME280_REGISTER_DIG_T3 == BME280_REGISTER_DIG_T1 +  4);
+  _bme280_calib.dig_T3 = (( int16_t)buf[ 5] << 8) | buf[ 4];
 
-  _bme280_calib.dig_H1 = read8(BME280_REGISTER_DIG_H1);
-  _bme280_calib.dig_H2 = readS16_LE(BME280_REGISTER_DIG_H2);
-  _bme280_calib.dig_H3 = read8(BME280_REGISTER_DIG_H3);
-  _bme280_calib.dig_H4 = ((int8_t)read8(BME280_REGISTER_DIG_H4) << 4) |
-                         (read8(BME280_REGISTER_DIG_H4 + 1) & 0xF);
-  _bme280_calib.dig_H5 = ((int8_t)read8(BME280_REGISTER_DIG_H5 + 1) << 4) |
-                         (read8(BME280_REGISTER_DIG_H5) >> 4);
-  _bme280_calib.dig_H6 = (int8_t)read8(BME280_REGISTER_DIG_H6);
+  static_assert(BME280_REGISTER_DIG_P1 == BME280_REGISTER_DIG_T1 +  6);
+  _bme280_calib.dig_P1 = ((uint16_t)buf[ 7] << 8) | buf[ 6];
+  static_assert(BME280_REGISTER_DIG_P2 == BME280_REGISTER_DIG_T1 +  8);
+  _bme280_calib.dig_P2 = (( int16_t)buf[ 9] << 8) | buf[ 8];
+  static_assert(BME280_REGISTER_DIG_P3 == BME280_REGISTER_DIG_T1 + 10);
+  _bme280_calib.dig_P3 = (( int16_t)buf[11] << 8) | buf[10];
+  static_assert(BME280_REGISTER_DIG_P4 == BME280_REGISTER_DIG_T1 + 12);
+  _bme280_calib.dig_P4 = (( int16_t)buf[13] << 8) | buf[12];
+  static_assert(BME280_REGISTER_DIG_P5 == BME280_REGISTER_DIG_T1 + 14);
+  _bme280_calib.dig_P5 = (( int16_t)buf[15] << 8) | buf[14];
+  static_assert(BME280_REGISTER_DIG_P6 == BME280_REGISTER_DIG_T1 + 16);
+  _bme280_calib.dig_P6 = (( int16_t)buf[17] << 8) | buf[16];
+  static_assert(BME280_REGISTER_DIG_P7 == BME280_REGISTER_DIG_T1 + 18);
+  _bme280_calib.dig_P7 = (( int16_t)buf[19] << 8) | buf[18];
+  static_assert(BME280_REGISTER_DIG_P8 == BME280_REGISTER_DIG_T1 + 20);
+  _bme280_calib.dig_P8 = (( int16_t)buf[21] << 8) | buf[20];
+  static_assert(BME280_REGISTER_DIG_P9 == BME280_REGISTER_DIG_T1 + 22);
+  _bme280_calib.dig_P9 = (( int16_t)buf[23] << 8) | buf[22];
+
+  static_assert(BME280_REGISTER_DIG_H1 == BME280_REGISTER_DIG_T1 + 25);
+  _bme280_calib.dig_H1 = buf[25];
+
+  static_assert(sizeof(buf) >= BME280_REGISTER_DIG_H6 - BME280_REGISTER_DIG_H2 + 1);
+  read(BME280_REGISTER_DIG_H2, buf, BME280_REGISTER_DIG_H6 - BME280_REGISTER_DIG_H2 + 1);
+  static_assert(BME280_REGISTER_DIG_H2 == BME280_REGISTER_DIG_H2 + 0);
+  _bme280_calib.dig_H2 =  (( int16_t)buf[1] << 8) | buf[0];
+  static_assert(BME280_REGISTER_DIG_H3 == BME280_REGISTER_DIG_H2 + 2);
+  _bme280_calib.dig_H3 = buf[2];
+  static_assert(BME280_REGISTER_DIG_H4 == BME280_REGISTER_DIG_H2 + 3);
+  _bme280_calib.dig_H4 = ((int16_t)buf[3] << 4) | (buf[4] & 0xF);
+  static_assert(BME280_REGISTER_DIG_H5 == BME280_REGISTER_DIG_H2 + 4);
+  _bme280_calib.dig_H5 = ((int16_t)buf[5] << 4) | (buf[4] >> 4);
+  static_assert(BME280_REGISTER_DIG_H6 == BME280_REGISTER_DIG_H2 + 6);
+  _bme280_calib.dig_H6 = (int8_t)buf[6];
 }
 
 /*!
