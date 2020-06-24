@@ -117,7 +117,7 @@ public:
   void getSensor(sensor_t *);
 
 private:
-  int _sensorID = 280;
+  static const int _sensorID = 280;
   Adafruit_BME280 *_theBME280 = NULL;
 };
 
@@ -131,7 +131,7 @@ public:
   void getSensor(sensor_t *);
 
 private:
-  int _sensorID = 280;
+  static const int _sensorID = 280;
   Adafruit_BME280 *_theBME280 = NULL;
 };
 
@@ -145,7 +145,7 @@ public:
   void getSensor(sensor_t *);
 
 private:
-  int _sensorID = 280;
+  static const int _sensorID = 280;
   Adafruit_BME280 *_theBME280 = NULL;
 };
 
