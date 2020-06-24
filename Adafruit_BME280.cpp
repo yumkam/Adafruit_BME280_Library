@@ -228,25 +228,9 @@ void Adafruit_BME280::write8(byte reg, byte value) {
  *   @returns the data byte read from the device
  */
 uint8_t Adafruit_BME280::read8(byte reg) {
-  uint8_t value;
-
-  if (_cs == -1) {
-    _wire->beginTransmission((uint8_t)_i2caddr);
-    _wire->write((uint8_t)reg);
-    _wire->endTransmission();
-    _wire->requestFrom((uint8_t)_i2caddr, (byte)1);
-    value = _wire->read();
-  } else {
-    if (_sck == -1)
-      _spi->beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
-    digitalWrite(_cs, LOW);
-    spixfer(reg | 0x80); // read, bit 7 high
-    value = spixfer(0);
-    digitalWrite(_cs, HIGH);
-    if (_sck == -1)
-      _spi->endTransaction(); // release the SPI bus
-  }
-  return value;
+  byte buf[1];
+  read(reg, buf, sizeof(buf));
+  return buf[0];
 }
 
 /*!
@@ -255,30 +239,9 @@ uint8_t Adafruit_BME280::read8(byte reg) {
  *   @returns the 16 bit data value read from the device
  */
 uint16_t Adafruit_BME280::read16(byte reg) {
-  uint16_t value;
-
-  if (_cs == -1) {
-    _wire->beginTransmission((uint8_t)_i2caddr);
-    _wire->write((uint8_t)reg);
-    _wire->endTransmission();
-    _wire->requestFrom((uint8_t)_i2caddr, (byte)2);
-    value = _wire->read();
-    value <<= 8;
-    value |= _wire->read();
-  } else {
-    if (_sck == -1)
-      _spi->beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
-    digitalWrite(_cs, LOW);
-    spixfer(reg | 0x80); // read, bit 7 high
-    value = spixfer(0);
-    value <<= 8;
-    value |= spixfer(0);
-    digitalWrite(_cs, HIGH);
-    if (_sck == -1)
-      _spi->endTransaction(); // release the SPI bus
-  }
-
-  return value;
+  byte buf[2];
+  read(reg, buf, sizeof(buf));
+  return ((uint16_t)buf[0] << 8) | buf[1];
 }
 
 /*!
@@ -340,37 +303,9 @@ int16_t Adafruit_BME280::readS16_LE(byte reg) {
  *   @returns the 24 bit data value read from the device
  */
 uint32_t Adafruit_BME280::read24(byte reg) {
-  uint32_t value;
-
-  if (_cs == -1) {
-    _wire->beginTransmission((uint8_t)_i2caddr);
-    _wire->write((uint8_t)reg);
-    _wire->endTransmission();
-    _wire->requestFrom((uint8_t)_i2caddr, (byte)3);
-
-    value = _wire->read();
-    value <<= 8;
-    value |= _wire->read();
-    value <<= 8;
-    value |= _wire->read();
-  } else {
-    if (_sck == -1)
-      _spi->beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
-    digitalWrite(_cs, LOW);
-    spixfer(reg | 0x80); // read, bit 7 high
-
-    value = spixfer(0);
-    value <<= 8;
-    value |= spixfer(0);
-    value <<= 8;
-    value |= spixfer(0);
-
-    digitalWrite(_cs, HIGH);
-    if (_sck == -1)
-      _spi->endTransaction(); // release the SPI bus
-  }
-
-  return value;
+  byte buf[3];
+  read(reg, buf, sizeof(buf));
+  return ((uint32_t)buf[0]<<16) | (((uint16_t)buf[1]<<8) | buf[2]);
 }
 
 /*!
